@@ -4,4 +4,8 @@ version = "0.1.0"
 authors = ["algon-320 <algon.0320@gmail.com>"]
 edition = "2018"
 
+[build-dependencies]
+peg = { version = "0.5" }
+
 [dependencies]
+nix = "0.14.0"

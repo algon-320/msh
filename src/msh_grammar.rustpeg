@@ -1,0 +1,115 @@
+use super::Command;
+use super::List;
+use super::Connector;
+use super::PipeLine;
+use super::Pipe;
+use super::Executable;
+use super::Redirect;
+use super::RedirectIn;
+use super::RedirectOut;
+use super::Str;
+
+
+whitespace = " " / "\n" / "\t"
+commentout = "#" [^\n]* [\n]?
+ignored = whitespace
+ign<E> = ignored* E ignored*
+
+pub command_line -> Option<List> = list?
+
+list -> List
+    = head:pipeline tail:(ign<";"> p:pipeline { Connector::Continue(p)})*
+    {
+        let mut tail = tail;
+        let mut list = vec![Connector::ListHead(head)];
+        list.append(&mut tail);
+        List(list)
+    }
+
+pipeline -> PipeLine
+    = head:command tail:(ign<"|&"> c:command { Pipe::Both(Box::new(c)) } / ign<"|"> c:command { Pipe::Stdout(Box::new(c)) })*
+    {
+        let mut tail = tail;
+        let mut pipeline = vec![Pipe::PipeLineHead(Box::new(head))];
+        pipeline.append(&mut tail);
+        PipeLine(pipeline)
+    }
+
+command -> Command
+    = words:(string ++ (ignored+)) redirects:redirect*
+    {
+        let exe = Executable::File { command_name: words[0].clone(), arguments: words[1..].to_vec() };
+
+        // in out それぞれ最後のものを残す
+        let mut redirect_in: Option<RedirectIn> = None;
+        let mut redirect_out: Option<RedirectOut> = None;
+
+        for r in redirects.iter() {
+            match r {
+                Redirect::In(rin) => {
+                    redirect_in = Some(rin.clone());
+                }
+                Redirect::Out(rout) => {
+                    redirect_out = Some(rout.clone());
+                }
+            }
+        }
+        Command { exe, redirect_in, redirect_out }
+    }
+    / "(" l:list ")" redirects:redirect*
+    {
+        let exe = Executable::SubShell(l);
+
+        // in out それぞれ最後のものを残す
+        let mut redirect_in: Option<RedirectIn> = None;
+        let mut redirect_out: Option<RedirectOut> = None;
+
+        for r in redirects.iter() {
+            match r {
+                Redirect::In(rin) => {
+                    redirect_in = Some(rin.clone());
+                }
+                Redirect::Out(rout) => {
+                    redirect_out = Some(rout.clone());
+                }
+            }
+        }
+
+        Command { exe, redirect_in, redirect_out }
+    }
+
+redirect -> Redirect
+    = rin: redirect_in { Redirect::In(rin) }
+    / rout: redirect_out { Redirect::Out(rout) }
+
+redirect_in -> RedirectIn
+    = ign<"<<"> s:$(char+) { RedirectIn::Heredoc(s.to_string()) }
+    / ign<"<"> s:string { RedirectIn::Normal(s) }
+
+redirect_out -> RedirectOut
+    = ign<">>"> s:string { RedirectOut::Append(s) }
+    / ign<">!"> s:string { RedirectOut::Overwrite(s) }
+    / ign<">"> s:string { RedirectOut::Normal(s) }
+
+string -> Str
+    = quoted / raw_str / variable / subshell_result
+
+quoted -> Str
+    = "\"" c:quoted_content<"\""> "\"" { Str::Quoted(c) }
+    / "'" c:quoted_content<"'"> "'"   { Str::Quoted(c) }
+quoted_content<Q> = (ss:subshell_result { ss } / v:variable { v } / s:$(!"$" !Q .)+ { Str::Raw(s.to_string()) })*
+
+raw_str -> Str
+    = s:$(char+) { Str::Raw(s.to_string()) }
+variable -> Str
+    = "$" name:$(char_varname+) { Str::Variable(name.to_string()) }
+    / "${" name:$(char_varname+) "}" { Str::Variable(name.to_string()) }
+subshell_result -> Str
+    = "$(" l:list ")" { Str::SubShellResult(l) }
+
+char
+    = [a-zA-Z] / [^;&()|^<>?*\[\]$`'"\\!{} ] / escaped
+char_varname
+    = [a-zA-Z] / [0-9] / [_-]
+escaped
+    = "\\" [;&()|^<>?*\[\]$`'"\\!{}tn ]
