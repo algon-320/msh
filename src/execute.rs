@@ -42,6 +42,7 @@ impl<'a> Shell<'a> {
             id: 0,
             parent: None,
             command_table: HashMap::new(),
+            variables: HashMap::new(),
         };
         super::builtin_commands::reload_path(&mut shell, Vec::new());
         shell
@@ -51,6 +52,7 @@ impl<'a> Shell<'a> {
             id: parent.id + 1,
             parent: Some(&parent),
             command_table: parent.command_table.clone(),
+            variables: HashMap::new(),
         };
         super::builtin_commands::reload_path(&mut shell, Vec::new());
         shell
@@ -311,7 +313,17 @@ impl Str {
     pub fn extract(self, shell: &mut Shell) -> Result<String, String> {
         match self {
             Str::Raw(s) => Ok(s.clone()),
-            Str::Variable(v) => std::env::var(v).map_err(error_to_string),
+            Str::Variable(v) => {
+                match std::env::var(v.as_str()) {
+                    Ok(v) => return Ok(v),
+                    _ => {}
+                };
+                match shell.variables.get(v.as_str()) {
+                    Some(v) => return Ok(v.clone()),
+                    _ => {}
+                };
+                Ok("".to_string()) // 未定義なら空文字列を返す
+            }
             Str::SubShellResult(list) => {
                 // pipeを作成して、in側をopenしてバッファに書き込む
                 // これを文字列として返す

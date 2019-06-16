@@ -18,6 +18,7 @@ pub struct Shell<'a> {
     pub id: usize,
     pub parent: Option<&'a Shell<'a>>,
     pub command_table: HashMap<String, CommandType>,
+    pub variables: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]

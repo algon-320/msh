@@ -113,16 +113,40 @@ pub fn export(_: &mut structures::Shell, mut argv: Vec<String>) -> execute::Exit
     0
 }
 
+// シェル変数を設定する
+pub fn var(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
+    let usage = "usage: `$ var var_name = content`";
+    if argv.len() != 3 || argv[1].as_str() != "=" {
+        eprintln!("var: mismatch arguments. {}", usage);
+        return 1;
+    }
+    let name = argv.remove(0);
+    let _ = argv.remove(0);
+    let body = argv.remove(0);
+    shell.variables.insert(name, body);
+    0
+}
+
+// シェル変数・環境変数を削除する
+pub fn unset(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
+    let usage = "usage: `$ unset var_name";
+    if argv.len() != 1 {
+        eprintln!("unset: mismatch arguments. {}", usage);
+        return 1;
+    }
+    let name = argv.remove(0);
+    std::env::remove_var(&name);
+    shell.variables.remove(&name);
+    0
+}
+
 // command_tableを再設定する
 pub fn reload_path(shell: &mut structures::Shell, _: Vec<String>) -> execute::ExitCode {
     let mut command_table: HashMap<String, structures::CommandType> = HashMap::new();
     // PATH からコマンドパスのテーブルを構築
     let path_str = match std::env::var("PATH") {
         Ok(s) => s,
-        Err(e) => {
-            eprintln!("{}", e);
-            return 1;
-        }
+        Err(e) => "".to_string()
     };
 
     // println!("{}", path_str);
@@ -168,6 +192,8 @@ pub fn reload_path(shell: &mut structures::Shell, _: Vec<String>) -> execute::Ex
     command_table.insert(format!("exit"), structures::CommandType::Builtin(exit));
 
     command_table.insert(format!("export"), structures::CommandType::Builtin(export));
+    command_table.insert(format!("var"), structures::CommandType::Builtin(var));
+    command_table.insert(format!("unset"), structures::CommandType::Builtin(unset));
 
     command_table.insert(
         format!("reload-path"),
