@@ -146,17 +146,17 @@ pub fn reload_path(shell: &mut structures::Shell, _: Vec<String>) -> execute::Ex
     // PATH からコマンドパスのテーブルを構築
     let path_str = match std::env::var("PATH") {
         Ok(s) => s,
-        Err(e) => "".to_string()
+        Err(e) => "".to_string(),
     };
 
     // println!("{}", path_str);
     for dir in path_str.split(":").map(|p| path::Path::new(p)) {
         if !dir.exists() {
-            eprintln!("path `{}` doesn't exist. skipped.", dir.display());
+            // eprintln!("path `{}` doesn't exist. skipped.", dir.display());
             continue;
         }
         if !dir.is_dir() {
-            eprintln!("`{}` is not a directory. skipped.", dir.display());
+            // eprintln!("`{}` is not a directory. skipped.", dir.display());
             continue;
         }
 
