@@ -307,7 +307,7 @@ impl Str {
     pub fn extract(self, shell: &mut Shell) -> Result<String, String> {
         match self {
             Str::Raw(s) => Ok(s.clone()),
-            Str::Variable(v) => unimplemented!(),
+            Str::Variable(v) => std::env::var(v).map_err(error_to_string),
             Str::SubShellResult(list) => {
                 // pipeを作成して、in側をopenしてバッファに書き込む
                 // これを文字列として返す

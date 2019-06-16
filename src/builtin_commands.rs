@@ -98,3 +98,17 @@ pub fn exit(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     println!("good bye.");
     std::process::exit(0);
 }
+
+// 環境変数を設定
+pub fn export(_: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
+    let usage = "usage: `$ export env_var_name = content`";
+    if argv.len() != 3 || argv[1].as_str() != "=" {
+        eprintln!("export: mismatch arguments. {}", usage);
+        return 1;
+    }
+    let name = argv.remove(0);
+    let _ = argv.remove(0);
+    let body = argv.remove(0);
+    std::env::set_var(name, body);
+    0
+}

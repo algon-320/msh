@@ -16,7 +16,14 @@ fn main() {
     let mut command_table: HashMap<String, structures::CommandType> = HashMap::new();
     {
         // PATH からコマンドパスのテーブルを構築
-        let path_str = env!("PATH");
+        let path_str = match std::env::var("PATH") {
+            Ok(s) => s,
+            Err(e) => {
+                eprintln!("{}", e);
+                return;
+            }
+        };
+
         // println!("{}", path_str);
         for dir in path_str.split(":").map(|p| path::Path::new(p)) {
             if !dir.exists() {
@@ -65,6 +72,10 @@ fn main() {
         command_table.insert(
             format!("exit"),
             structures::CommandType::Builtin(builtin_commands::exit),
+        );
+        command_table.insert(
+            format!("export"),
+            structures::CommandType::Builtin(builtin_commands::export),
         );
     }
 
