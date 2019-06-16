@@ -37,19 +37,23 @@ fn open_file(path: &str, flag: fcntl::OFlag) -> Result<io::RawFd, String> {
 }
 
 impl<'a> Shell<'a> {
-    pub fn new(command_table: HashMap<String, CommandType>) -> Shell<'a> {
-        Shell {
+    pub fn new() -> Shell<'a> {
+        let mut shell = Shell {
             id: 0,
             parent: None,
-            command_table: command_table,
-        }
+            command_table: HashMap::new(),
+        };
+        super::builtin_commands::reload_path(&mut shell, Vec::new());
+        shell
     }
     pub fn fromParent(parent: &'a Shell<'a>) -> Shell<'a> {
-        Shell {
+        let mut shell = Shell {
             id: parent.id + 1,
             parent: Some(&parent),
             command_table: parent.command_table.clone(),
-        }
+        };
+        super::builtin_commands::reload_path(&mut shell, Vec::new());
+        shell
     }
     pub fn wait(&self) -> ExitCode {
         let mut exit_status = 0;

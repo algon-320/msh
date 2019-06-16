@@ -1,10 +1,10 @@
 use nix::unistd;
-use std::path;
 
 
 use super::execute;
 use super::structures;
-// エイリアスを登録
+use std::collections::HashMap;
+use std::path;
 pub fn alias(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ alias name = content`";
     if argv.len() != 3 || argv[1].as_str() != "=" {
@@ -110,5 +110,71 @@ pub fn export(_: &mut structures::Shell, mut argv: Vec<String>) -> execute::Exit
     let _ = argv.remove(0);
     let body = argv.remove(0);
     std::env::set_var(name, body);
+    0
+}
+
+// command_tableを再設定する
+pub fn reload_path(shell: &mut structures::Shell, _: Vec<String>) -> execute::ExitCode {
+    let mut command_table: HashMap<String, structures::CommandType> = HashMap::new();
+    // PATH からコマンドパスのテーブルを構築
+    let path_str = match std::env::var("PATH") {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("{}", e);
+            return 1;
+        }
+    };
+
+    // println!("{}", path_str);
+    for dir in path_str.split(":").map(|p| path::Path::new(p)) {
+        if !dir.exists() {
+            eprintln!("path `{}` doesn't exist. skipped.", dir.display());
+            continue;
+        }
+        if !dir.is_dir() {
+            eprintln!("`{}` is not a directory. skipped.", dir.display());
+            continue;
+        }
+
+        for entry in dir.read_dir().unwrap() {
+            if let Ok(ent) = entry {
+                if let Some(name) = ent.path().file_name() {
+                    command_table.insert(
+                        name.to_str().unwrap().to_string(),
+                        structures::CommandType::External(ent.path().clone()),
+                    );
+                }
+            }
+        }
+    }
+
+    // 組み込み関数の登録
+    command_table.insert(
+        format!("builtin-echo"),
+        structures::CommandType::Builtin(echo),
+    );
+
+    command_table.insert(format!("type"), structures::CommandType::Builtin(type_));
+
+    command_table.insert(format!("cd"), structures::CommandType::Builtin(cd));
+
+    command_table.insert(format!("alias"), structures::CommandType::Builtin(alias));
+
+    command_table.insert(
+        format!("unalias"),
+        structures::CommandType::Builtin(unalias),
+    );
+
+    command_table.insert(format!("exit"), structures::CommandType::Builtin(exit));
+
+    command_table.insert(format!("export"), structures::CommandType::Builtin(export));
+
+    command_table.insert(
+        format!("reload-path"),
+        structures::CommandType::Builtin(reload_path),
+    );
+
+    shell.command_table = command_table;
+
     0
 }

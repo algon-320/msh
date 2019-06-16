@@ -5,82 +5,12 @@ mod msh_grammar {
     include!(concat!(env!("OUT_DIR"), "/msh_grammar.rs"));
 }
 
-use std::collections::HashMap;
 use std::io;
 use std::io::Write;
-use std::path;
 
 fn main() {
     println!("msh version {}", env!("CARGO_PKG_VERSION"));
-
-    let mut command_table: HashMap<String, structures::CommandType> = HashMap::new();
-    {
-        // PATH からコマンドパスのテーブルを構築
-        let path_str = match std::env::var("PATH") {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("{}", e);
-                return;
-            }
-        };
-
-        // println!("{}", path_str);
-        for dir in path_str.split(":").map(|p| path::Path::new(p)) {
-            if !dir.exists() {
-                eprintln!("path `{}` doesn't exist. skipped.", dir.display());
-                continue;
-            }
-            if !dir.is_dir() {
-                eprintln!("`{}` is not a directory. skipped.", dir.display());
-                continue;
-            }
-
-            for entry in dir.read_dir().unwrap() {
-                if let Ok(ent) = entry {
-                    if let Some(name) = ent.path().file_name() {
-                        command_table.insert(
-                            name.to_str().unwrap().to_string(),
-                            structures::CommandType::External(ent.path().clone()),
-                        );
-                    }
-                }
-            }
-        }
-
-        // 組み込み関数の登録
-        command_table.insert(
-            format!("builtin-echo"),
-            structures::CommandType::Builtin(builtin_commands::echo),
-        );
-        command_table.insert(
-            format!("type"),
-            structures::CommandType::Builtin(builtin_commands::type_),
-        );
-        command_table.insert(
-            format!("cd"),
-            structures::CommandType::Builtin(builtin_commands::cd),
-        );
-
-        command_table.insert(
-            format!("alias"),
-            structures::CommandType::Builtin(builtin_commands::alias),
-        );
-        command_table.insert(
-            format!("unalias"),
-            structures::CommandType::Builtin(builtin_commands::unalias),
-        );
-        command_table.insert(
-            format!("exit"),
-            structures::CommandType::Builtin(builtin_commands::exit),
-        );
-        command_table.insert(
-            format!("export"),
-            structures::CommandType::Builtin(builtin_commands::export),
-        );
-    }
-
-    let mut shell = structures::Shell::new(command_table);
-
+    let mut shell = structures::Shell::new();
     loop {
         print!("$ "); // prompt
         io::stdout().flush().unwrap();
