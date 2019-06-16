@@ -1,39 +1,42 @@
 use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use std::ffi::OsString;
 
 use std::path::PathBuf;
 
-// #[derive(Clone)]
-// pub enum CommandType {
-//     External(PathBuf),
-//     Builtin(fn(&mut Shell, Vec<String>) -> ExitCode),
-//     Alias(String),
-// }
+use super::execute;
 
-// pub struct Shell<'a> {
-//     pub id: usize,
-//     pub parent: Option<&'a Shell<'a>>,
-//     pub command_table: HashMap<String, CommandType>,
-// }
+#[derive(Clone)]
+pub enum CommandType {
+    External(PathBuf),
+    Builtin(fn(&mut Shell, Vec<String>) -> execute::ExitCode),
+    Alias(String),
+}
+
+pub struct Shell<'a> {
+    pub id: usize,
+    pub parent: Option<&'a Shell<'a>>,
+    pub command_table: HashMap<String, CommandType>,
+}
 
 #[derive(Debug, Clone)]
 pub struct List(pub Vec<Connector>);
 
 #[derive(Debug, Clone)]
 pub enum Connector {
-    ListHead(PipeLine),
     Continue(PipeLine),
+    ListTerm(PipeLine),
 }
 
 #[derive(Debug, Clone)]
-pub struct PipeLine(pub Vec<Pipe>);
+pub struct PipeLine(pub VecDeque<Pipe>);
 
 #[derive(Debug, Clone)]
 pub enum Pipe {
-    PipeLineHead(Box<Command>),
-    Stdout(Box<Command>),
-    Both(Box<Command>),
+    Stdout(Command),
+    Both(Command),
+    PipeLineTerm(Command),
 }
 
 #[derive(Debug, Clone)]
@@ -99,14 +102,14 @@ impl List {
 impl Connector {
     pub fn print(&self, indent: usize) -> String {
         match self {
-            Connector::ListHead(p) => format!(
-                "{}ListHead(\n{},\n{})",
+            Connector::Continue(p) => format!(
+                "{}Continue(\n{},\n{})",
                 gen_indent(indent),
                 p.print(indent + INDENT_WIDTH),
                 gen_indent(indent)
             ),
-            Connector::Continue(p) => format!(
-                "{}Continue(\n{},\n{})",
+            Connector::ListTerm(p) => format!(
+                "{}ListTerm(\n{},\n{})",
                 gen_indent(indent),
                 p.print(indent + INDENT_WIDTH),
                 gen_indent(indent)
@@ -131,8 +134,8 @@ impl PipeLine {
 impl Pipe {
     pub fn print(&self, indent: usize) -> String {
         match self {
-            Pipe::PipeLineHead(c) => format!(
-                "{}PipeLineHead(\n{},\n{})",
+            Pipe::PipeLineTerm(c) => format!(
+                "{}PipeLineTerm(\n{},\n{})",
                 gen_indent(indent),
                 c.print(indent + INDENT_WIDTH),
                 gen_indent(indent)

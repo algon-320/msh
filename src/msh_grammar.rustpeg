@@ -1,14 +1,6 @@
-use super::Command;
-use super::List;
-use super::Connector;
-use super::PipeLine;
-use super::Pipe;
-use super::Executable;
-use super::Redirect;
-use super::RedirectIn;
-use super::RedirectOut;
-use super::Str;
-
+use super::structures::*;
+use std::collections::VecDeque;
+use std::iter::FromIterator;
 
 whitespace = " " / "\n" / "\t"
 commentout = "#" [^\n]* [\n]?
@@ -18,20 +10,18 @@ ign<E> = ignored* E ignored*
 pub command_line -> Option<List> = list?
 
 list -> List
-    = head:pipeline tail:(ign<";"> p:pipeline { Connector::Continue(p)})*
+    = l:(p:pipeline ign<";"> { Connector::Continue(p) })* p:pipeline
     {
-        let mut tail = tail;
-        let mut list = vec![Connector::ListHead(head)];
-        list.append(&mut tail);
+        let mut list = l;
+        list.push(Connector::ListTerm(p));
         List(list)
     }
 
 pipeline -> PipeLine
-    = head:command tail:(ign<"|&"> c:command { Pipe::Both(Box::new(c)) } / ign<"|"> c:command { Pipe::Stdout(Box::new(c)) })*
+    = p:(c:command ign<"|&"> { Pipe::Both(c) } / c:command ign<"|"> { Pipe::Stdout(c) })* c:command
     {
-        let mut tail = tail;
-        let mut pipeline = vec![Pipe::PipeLineHead(Box::new(head))];
-        pipeline.append(&mut tail);
+        let mut pipeline = VecDeque::from_iter(p.into_iter());
+        pipeline.push_back(Pipe::PipeLineTerm(c));
         PipeLine(pipeline)
     }
 
