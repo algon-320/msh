@@ -82,6 +82,20 @@ impl<'a> Shell<'a> {
                     exit_status = self.wait();
                     // 終了コードに関わらず続行
                 }
+                Connector::And(pipeline) => {
+                    pipeline.exec(self, 0, 1, 2)?;
+                    exit_status = self.wait();
+                    if exit_status != 0 {
+                        break;
+                    }
+                }
+                Connector::Or(pipeline) => {
+                    pipeline.exec(self, 0, 1, 2)?;
+                    exit_status = self.wait();
+                    if exit_status == 0 {
+                        break;
+                    }
+                }
                 Connector::ListTerm(pipeline) => {
                     pipeline.exec(self, 0, 1, 2)?;
                     exit_status = self.wait();

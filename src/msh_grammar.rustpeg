@@ -10,7 +10,9 @@ ign<E> = ignored* E ignored*
 pub command_line -> Option<List> = list?
 
 list -> List
-    = l:(p:pipeline ign<";"> { Connector::Continue(p) })* p:pipeline
+    = l:(p:pipeline ign<";"> { Connector::Continue(p) }
+       / p:pipeline ign<"&&"> { Connector::And(p) }
+       / p:pipeline ign<"||"> { Connector::Or(p) } )* p:pipeline
     {
         let mut list = l;
         list.push(Connector::ListTerm(p));
@@ -18,7 +20,7 @@ list -> List
     }
 
 pipeline -> PipeLine
-    = p:(c:command ign<"|&"> { Pipe::Both(c) } / c:command ign<"|"> { Pipe::Stdout(c) })* c:command
+    = p:(c:command ign<"|&"> { Pipe::Both(c) } / c:command !ign<"||"> ign<"|"> { Pipe::Stdout(c) })* c:command
     {
         let mut pipeline = VecDeque::from_iter(p.into_iter());
         pipeline.push_back(Pipe::PipeLineTerm(c));

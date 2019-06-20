@@ -23,6 +23,8 @@ pub struct List(pub Vec<Connector>);
 #[derive(Debug, Clone)]
 pub enum Connector {
     Continue(PipeLine),
+    And(PipeLine),
+    Or(PipeLine),
     ListTerm(PipeLine),
 }
 
@@ -103,6 +105,18 @@ impl Connector {
         match self {
             Connector::Continue(p) => format!(
                 "{}Continue(\n{},\n{})",
+                gen_indent(indent),
+                p.print(indent + INDENT_WIDTH),
+                gen_indent(indent)
+            ),
+            Connector::And(p) => format!(
+                "{}And(\n{},\n{})",
+                gen_indent(indent),
+                p.print(indent + INDENT_WIDTH),
+                gen_indent(indent)
+            ),
+            Connector::Or(p) => format!(
+                "{}Or(\n{},\n{})",
                 gen_indent(indent),
                 p.print(indent + INDENT_WIDTH),
                 gen_indent(indent)
