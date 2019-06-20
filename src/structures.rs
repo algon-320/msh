@@ -1,15 +1,11 @@
 use std::collections::HashMap;
 use std::collections::VecDeque;
-
-use std::ffi::OsString;
-
-use std::path::PathBuf;
-
+use std::path;
 use super::execute;
 
 #[derive(Clone)]
 pub enum CommandType {
-    External(PathBuf),
+    External(path::PathBuf),
     Builtin(fn(&mut Shell, Vec<String>) -> execute::ExitCode),
     Alias(String),
 }
@@ -54,11 +50,13 @@ pub struct Command {
     pub exe: Executable,
     pub redirect_in: Option<RedirectIn>,
     pub redirect_out: Option<RedirectOut>,
+    pub redirect_err: Option<RedirectOut>,
 }
 
 pub enum Redirect {
     In(RedirectIn),
     Out(RedirectOut),
+    Err(RedirectOut),
 }
 
 #[derive(Debug, Clone)]

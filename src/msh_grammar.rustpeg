@@ -26,35 +26,25 @@ pipeline -> PipeLine
     }
 
 command -> Command
-    = words:(string ++ (ignored+)) redirects:redirect*
+    = words:(string ++ (ignored+)) r:redirects
     {
         let exe = Executable::File { command_name: words[0].clone(), arguments: words[1..].to_vec() };
-
-        // in out それぞれ最後のものを残す
-        let mut redirect_in: Option<RedirectIn> = None;
-        let mut redirect_out: Option<RedirectOut> = None;
-
-        for r in redirects.iter() {
-            match r {
-                Redirect::In(rin) => {
-                    redirect_in = Some(rin.clone());
-                }
-                Redirect::Out(rout) => {
-                    redirect_out = Some(rout.clone());
-                }
-            }
-        }
-        Command { exe, redirect_in, redirect_out }
+        Command { exe: exe, redirect_in: r.0, redirect_out: r.1, redirect_err: r.2 }
     }
-    / "(" l:list ")" redirects:redirect*
+    / "(" l:list ")" r:redirects
     {
         let exe = Executable::SubShell(l);
-
-        // in out それぞれ最後のものを残す
+        Command { exe: exe, redirect_in: r.0, redirect_out: r.1, redirect_err: r.2 }
+    }
+redirects -> (Option<RedirectIn>, Option<RedirectOut>, Option<RedirectOut>)
+    = r:redirect*
+    {
+        // in, out, err それぞれ最後のものを残す
         let mut redirect_in: Option<RedirectIn> = None;
         let mut redirect_out: Option<RedirectOut> = None;
+        let mut redirect_err: Option<RedirectOut> = None;
 
-        for r in redirects.iter() {
+        for r in r.iter() {
             match r {
                 Redirect::In(rin) => {
                     redirect_in = Some(rin.clone());
@@ -62,14 +52,18 @@ command -> Command
                 Redirect::Out(rout) => {
                     redirect_out = Some(rout.clone());
                 }
+                Redirect::Err(rerr) => {
+                    redirect_err = Some(rerr.clone());
+                }
             }
         }
 
-        Command { exe, redirect_in, redirect_out }
+        (redirect_in, redirect_out, redirect_err)
     }
 
 redirect -> Redirect
     = rin: redirect_in { Redirect::In(rin) }
+    / rerr: redirect_err { Redirect::Err(rerr) }
     / rout: redirect_out { Redirect::Out(rout) }
 
 redirect_in -> RedirectIn
@@ -77,9 +71,14 @@ redirect_in -> RedirectIn
     / ign<"<"> s:string { RedirectIn::Normal(s) }
 
 redirect_out -> RedirectOut
-    = ign<">>"> s:string { RedirectOut::Append(s) }
-    / ign<">!"> s:string { RedirectOut::Overwrite(s) }
+    = ign<">+"> s:string { RedirectOut::Append(s) }
+    / ign<">="> s:string { RedirectOut::Overwrite(s) }
     / ign<">"> s:string { RedirectOut::Normal(s) }
+
+redirect_err -> RedirectOut
+    = ign<">+!"> s:string { RedirectOut::Append(s) }
+    / ign<">=!"> s:string { RedirectOut::Overwrite(s) }
+    / ign<">!"> s:string { RedirectOut::Normal(s) }
 
 string -> Str
     = quoted / raw_str / variable / subshell_result

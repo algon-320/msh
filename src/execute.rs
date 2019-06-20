@@ -78,12 +78,12 @@ impl<'a> Shell<'a> {
         for connector in cmds.0 {
             match connector {
                 Connector::Continue(pipeline) => {
-                    pipeline.exec(self, 0, 1)?;
+                    pipeline.exec(self, 0, 1, 2)?;
                     exit_status = self.wait();
                     // 終了コードに関わらず続行
                 }
                 Connector::ListTerm(pipeline) => {
-                    pipeline.exec(self, 0, 1)?;
+                    pipeline.exec(self, 0, 1, 2)?;
                     exit_status = self.wait();
                 }
             }
@@ -98,6 +98,7 @@ impl PipeLine {
         shell: &mut Shell,
         stdin: io::RawFd,
         stdout: io::RawFd,
+        stderr: io::RawFd,
     ) -> Result<(), String> {
         let pipeline = self.0;
         if pipeline.is_empty() {
@@ -110,15 +111,13 @@ impl PipeLine {
 
             match pipe {
                 Pipe::Stdout(cmd) => {
-                    cmd.exec(shell, next_in, p.1, vec![p.0])?;
+                    cmd.exec(shell, next_in, p.1, stderr, vec![p.0])?;
                 }
                 Pipe::Both(cmd) => {
-                    unimplemented!();
-                    next_in = p.0;
-                    cmd.exec(shell, next_in, p.1, vec![p.0])?;
+                    cmd.exec(shell, next_in, p.1, p.1, vec![p.0])?;
                 }
                 Pipe::PipeLineTerm(cmd) => {
-                    cmd.exec(shell, next_in, stdout, Vec::new())?;
+                    cmd.exec(shell, next_in, stdout, stderr, Vec::new())?;
                 }
             }
 
@@ -166,6 +165,7 @@ impl Command {
         shell: &mut Shell,
         stdin: io::RawFd,
         stdout: io::RawFd,
+        stderr: io::RawFd,
         to_close: Vec<io::RawFd>,
     ) -> Result<(), String> {
         let stdin = if let Some(r) = self.redirect_in {
@@ -177,6 +177,11 @@ impl Command {
             r.extract(shell)?
         } else {
             stdout
+        };
+        let stderr = if let Some(r) = self.redirect_err {
+            r.extract(shell)?
+        } else {
+            stderr
         };
 
         match self.exe {
@@ -241,6 +246,7 @@ impl Command {
 
                                 unistd::dup2(stdin, 0).unwrap();
                                 unistd::dup2(stdout, 1).unwrap();
+                                unistd::dup2(stderr, 2).unwrap();
 
                                 let path = ffi::CString::new(path.to_str().unwrap()).unwrap();
                                 let mut argv = Vec::with_capacity(1 + arguments.len());
@@ -268,19 +274,23 @@ impl Command {
 
                         let old_stdin = unistd::dup(0).map_err(error_to_string)?;
                         let old_stdout = unistd::dup(1).map_err(error_to_string)?;
+                        let old_stderr = unistd::dup(2).map_err(error_to_string)?;
 
                         // eprintln!("builtin `{:?}`, in: {}, out: {}", command_name, stdin, stdout);
 
                         unistd::dup2(stdin, 0).map_err(error_to_string)?;
                         unistd::dup2(stdout, 1).map_err(error_to_string)?;
+                        unistd::dup2(stderr, 2).map_err(error_to_string)?;
 
                         f(shell, args);
 
                         unistd::dup2(old_stdin, 0).map_err(error_to_string)?;
                         unistd::dup2(old_stdout, 1).map_err(error_to_string)?;
+                        unistd::dup2(old_stderr, 2).map_err(error_to_string)?;
 
                         unistd::close(old_stdin).map_err(error_to_string)?;
                         unistd::close(old_stdout).map_err(error_to_string)?;
+                        unistd::close(old_stderr).map_err(error_to_string)?;
                     }
                     _ => {}
                 }
@@ -295,9 +305,9 @@ impl Command {
                             unistd::close(fd).map_err(error_then_exit).unwrap();
                         }
 
-
                         unistd::dup2(stdin, 0).map_err(error_then_exit);
                         unistd::dup2(stdout, 1).map_err(error_then_exit);
+                        unistd::dup2(stderr, 2).map_err(error_then_exit);
                         child_shell.exec(cmds).map_err(error_then_exit);
                         std::process::exit(0);
                     }
