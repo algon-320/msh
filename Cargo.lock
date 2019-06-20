@@ -24,6 +24,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "msh"
 version = "0.2.0"
 dependencies = [
+ "libc 0.2.58 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.14.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "peg 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

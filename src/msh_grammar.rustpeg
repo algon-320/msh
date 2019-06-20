@@ -12,11 +12,12 @@ pub command_line -> Option<List> = list?
 list -> List
     = l:(p:pipeline ign<";"> { Connector::Continue(p) }
        / p:pipeline ign<"&&"> { Connector::And(p) }
-       / p:pipeline ign<"||"> { Connector::Or(p) } )* p:pipeline
+       / p:pipeline ign<"||"> { Connector::Or(p) } )* p:pipeline bg:ign<"&">?
     {
+        let bg = bg.map(|_| BackgroundFlag);
         let mut list = l;
         list.push(Connector::ListTerm(p));
-        List(list)
+        List(list, bg)
     }
 
 pipeline -> PipeLine

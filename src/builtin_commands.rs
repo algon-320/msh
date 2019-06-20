@@ -1,10 +1,11 @@
 use nix::unistd;
 
-
 use super::execute;
 use super::structures;
 use std::collections::HashMap;
 use std::path;
+
+/// aliasを追加
 pub fn alias(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ alias name = content`";
     if argv.len() != 3 || argv[1].as_str() != "=" {
@@ -19,7 +20,7 @@ pub fn alias(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::E
         .insert(name, structures::CommandType::Alias(body));
     0
 }
-// エイリアスを削除
+/// エイリアスを削除
 pub fn unalias(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ unalias name";
     if argv.len() != 1 {
@@ -34,28 +35,42 @@ pub fn unalias(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute:
     0
 }
 
-// cd コマンド
-// カレントディレクトリを変更
-// 引数を指定しない場合は何もしない
-// 2つ以上の引数を指定した場合、エラーメッセージを出して終了
+/// cd コマンド
+/// カレントディレクトリを変更
+/// 引数を指定しない場合は $HOME が指すディレクトリに移動する
+/// 2つ以上の引数を指定した場合、エラーメッセージを出して終了
+/// 元のディレクトリを $OLDPWD に格納した上で新しいディレクトリに移動する
+/// `cd -`のようにすると、$OLDPWD が指すディレクトリに移動する
 pub fn cd(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
-    if argv.len() == 0 {
-        return 1;
-    }
     if argv.len() > 1 {
         eprintln!("cd: too many arguments.");
-        return 2;
+        return 1;
     }
-    match unistd::chdir(path::Path::new(&argv[0])) {
+
+    let home_dir = std::env::var("HOME").unwrap();
+    let oldpwd = std::env::var("OLDPWD");
+    let new_wd = if argv.len() == 0 {
+        path::Path::new(&home_dir)
+    } else if argv.first().unwrap().as_str() == "-" && oldpwd.is_ok() {
+        path::Path::new(oldpwd.as_ref().unwrap())
+    } else {
+        path::Path::new(&argv[0])
+    };
+
+    let pwd = std::env::current_dir().unwrap();
+    let pwd = pwd.as_path().to_str().unwrap();
+    std::env::set_var("OLDPWD", pwd);
+
+    match unistd::chdir(new_wd) {
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("cd: {}", e);
             1
         }
         _ => 0,
     }
 }
 
-// コマンド名の実体を調べる
+/// コマンド名の実体を調べる
 pub fn type_(shell: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     for name in argv {
         match shell.command_table.get(name.as_str()) {
@@ -76,7 +91,7 @@ pub fn type_(shell: &mut structures::Shell, argv: Vec<String>) -> execute::ExitC
     0
 }
 
-// 組み込み関数
+/// 組み込み関数
 pub fn echo(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     if argv.len() > 0 {
         eprintln!("too many arguments");
@@ -94,12 +109,13 @@ pub fn echo(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     0
 }
 
+/// シェルを終了する
 pub fn exit(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     println!("good bye.");
     std::process::exit(0);
 }
 
-// 環境変数を設定
+/// 環境変数を設定
 pub fn export(_: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ export env_var_name = content`";
     if argv.len() != 3 || argv[1].as_str() != "=" {
@@ -113,7 +129,7 @@ pub fn export(_: &mut structures::Shell, mut argv: Vec<String>) -> execute::Exit
     0
 }
 
-// シェル変数を設定する
+/// シェル変数を設定する
 pub fn var(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ var var_name = content`";
     if argv.len() != 3 || argv[1].as_str() != "=" {
@@ -127,7 +143,7 @@ pub fn var(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::Exi
     0
 }
 
-// シェル変数・環境変数を削除する
+/// シェル変数・環境変数を削除する
 pub fn unset(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::ExitCode {
     let usage = "usage: `$ unset var_name";
     if argv.len() != 1 {
@@ -140,13 +156,13 @@ pub fn unset(shell: &mut structures::Shell, mut argv: Vec<String>) -> execute::E
     0
 }
 
-// command_tableを再設定する
+/// command_tableを再設定する
 pub fn reload_path(shell: &mut structures::Shell, _: Vec<String>) -> execute::ExitCode {
     let mut command_table: HashMap<String, structures::CommandType> = HashMap::new();
     // PATH からコマンドパスのテーブルを構築
     let path_str = match std::env::var("PATH") {
         Ok(s) => s,
-        Err(e) => "".to_string(),
+        Err(_) => "".to_string(),
     };
 
     // println!("{}", path_str);

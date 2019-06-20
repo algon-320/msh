@@ -39,7 +39,6 @@ fn open_file(path: &str, flag: fcntl::OFlag) -> Result<io::RawFd, String> {
 impl<'a> Shell<'a> {
     pub fn new() -> Shell<'a> {
         let mut shell = Shell {
-            id: 0,
             parent: None,
             command_table: HashMap::new(),
             variables: HashMap::new(),
@@ -49,7 +48,6 @@ impl<'a> Shell<'a> {
     }
     pub fn fromParent(parent: &'a Shell<'a>) -> Shell<'a> {
         let mut shell = Shell {
-            id: parent.id + 1,
             parent: Some(&parent),
             command_table: parent.command_table.clone(),
             variables: HashMap::new(),
@@ -65,7 +63,7 @@ impl<'a> Shell<'a> {
                     sys::wait::WaitStatus::Exited(_, code) => {
                         exit_status = code;
                     }
-                    _ => {}
+                    e => eprintln!("waitpid: change state: {:?}", e),
                 }
                 continue;
             }
@@ -75,6 +73,19 @@ impl<'a> Shell<'a> {
     }
     pub fn exec(&mut self, cmds: List) -> Result<ExitCode, String> {
         let mut exit_status = 0;
+        if cmds.1.is_some() {
+            println!("[run on the background]");
+            let cmds = Command {
+                exe: Executable::SubShell(List(cmds.0, None)),
+                redirect_in: None,
+                redirect_out: None,
+                redirect_err: None,
+            };
+            let mut subsehll = Shell::fromParent(self);
+            cmds.exec(&mut subsehll, 0, 1, 2, Vec::new());
+            return Ok(0);
+        }
+
         for connector in cmds.0 {
             match connector {
                 Connector::Continue(pipeline) => {
@@ -235,16 +246,7 @@ impl Command {
                         arguments = new_arg;
 
                         let com_name = tmp.first().unwrap();
-                        match command_search(shell, com_name) {
-                            Ok(CommandType::Alias(_)) => {
-                                return Err(error_to_string(format!(
-                                    "`{}` not found.",
-                                    &command_name
-                                )))
-                            }
-                            Ok(other) => other,
-                            Err(e) => return Err(e),
-                        }
+                        command_search(shell, com_name)?
                     }
                     _ => cmd,
                 };

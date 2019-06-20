@@ -1,7 +1,8 @@
+use super::execute;
+
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::path;
-use super::execute;
 
 #[derive(Clone)]
 pub enum CommandType {
@@ -11,14 +12,15 @@ pub enum CommandType {
 }
 
 pub struct Shell<'a> {
-    pub id: usize,
     pub parent: Option<&'a Shell<'a>>,
     pub command_table: HashMap<String, CommandType>,
     pub variables: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]
-pub struct List(pub Vec<Connector>);
+pub struct List(pub Vec<Connector>, pub Option<BackgroundFlag>);
+#[derive(Debug, Clone)]
+pub struct BackgroundFlag;
 
 #[derive(Debug, Clone)]
 pub enum Connector {
@@ -81,9 +83,8 @@ pub enum Str {
     Quoted(Vec<Str>),
 }
 
-
-static INDENT_WIDTH: usize = 2;
 // デバッグ用関数
+static INDENT_WIDTH: usize = 2;
 fn gen_indent(d: usize) -> String {
     " ".repeat(d)
 }
