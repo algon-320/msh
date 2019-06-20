@@ -12,7 +12,8 @@ fn main() {
     println!("msh version {}", env!("CARGO_PKG_VERSION"));
     let mut shell = structures::Shell::new();
     loop {
-        print!("$ "); // prompt
+        let user = std::env::var("USER").unwrap_or(format!("(unknown)"));
+        print!("{}:{}$ ", user, std::env::current_dir().unwrap().display()); // prompt
         io::stdout().flush().unwrap();
         let mut s = String::new();
         let bytes = io::stdin().read_line(&mut s).unwrap();
