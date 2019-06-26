@@ -32,7 +32,7 @@ fn open_file(path: &str, flag: fcntl::OFlag) -> Result<io::RawFd, String> {
         | sys::stat::Mode::S_IROTH;
     fcntl::open(path, flag, permission).map_err(|e| match e {
         nix::Error::Sys(nix::errno::Errno::EEXIST) => error_to_string(format!(
-            "`{}` already exists, use `>!` to overwrite it.",
+            "`{}` already exists, use `>=` to overwrite it.",
             path
         )),
         e => error_to_string(e),
