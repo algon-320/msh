@@ -91,7 +91,7 @@ pub fn type_(shell: &mut structures::Shell, argv: Vec<String>) -> execute::ExitC
     0
 }
 
-/// 組み込み関数
+/// 標準入力をそのまま出力する
 pub fn echo(_: &mut structures::Shell, argv: Vec<String>) -> execute::ExitCode {
     if argv.len() > 0 {
         eprintln!("too many arguments");
