@@ -10,19 +10,19 @@ use std::io::Write;
 
 use nix::sys::signal;
 
+extern "C" fn do_nothing(_: std::os::raw::c_int) {}
+
 fn main() {
     println!("msh version {}", env!("CARGO_PKG_VERSION"));
 
-    // TODO シグナル周りの設定
+    // SIGINTでシェルが終了しないように設定
     let sigign = signal::SigAction::new(
-        signal::SigHandler::SigIgn,
+        signal::SigHandler::Handler(do_nothing),
         signal::SaFlags::SA_RESTART,
         signal::SigSet::empty(),
     );
     unsafe {
         signal::sigaction(signal::Signal::SIGINT, &sigign).unwrap();
-        signal::sigaction(signal::Signal::SIGTSTP, &sigign).unwrap();
-        signal::sigaction(signal::Signal::SIGQUIT, &sigign).unwrap();
     }
 
     let mut shell = structures::Shell::new();

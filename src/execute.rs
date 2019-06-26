@@ -2,6 +2,7 @@ use super::structures::*;
 
 use nix::fcntl;
 use nix::sys;
+use nix::sys::signal;
 use nix::unistd;
 
 use std::ffi;
@@ -9,6 +10,8 @@ use std::ffi;
 use std::collections::HashMap;
 use std::os::unix::io;
 use std::path::PathBuf;
+
+use std::cell::RefCell;
 
 pub type ExitCode = i32;
 
@@ -63,7 +66,8 @@ impl<'a> Shell<'a> {
                     sys::wait::WaitStatus::Exited(_, code) => {
                         exit_status = code;
                     }
-                    e => eprintln!("waitpid: change state: {:?}", e),
+                    _ => {}
+                    // e => eprintln!("waitpid: change state: {:?}", e),
                 }
                 continue;
             }

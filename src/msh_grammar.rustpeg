@@ -100,8 +100,8 @@ subshell_result -> Str
     = "$(" l:list ")" { Str::SubShellResult(l) }
 
 char
-    = [a-zA-Z] / [^;&()|^<>?*\[\]$`'"\\!{} ] / escaped
+    = [^;&()|<>?*$'"\\{} ] / escaped
 char_varname
     = [a-zA-Z] / [0-9] / [_-]
 escaped
-    = "\\" [;&()|^<>?*\[\]$`'"\\!{}tn ]
+    = "\\" [;&()|<>?*$'"\\{}tn ]
